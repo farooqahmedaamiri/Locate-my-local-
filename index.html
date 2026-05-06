@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Locate My Local - Chennai Street Vendor Finder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Poppins", sans-serif; }
+    :root {
+      --bg: #0b1020; --bg-soft: #121933; --card: rgba(255,255,255,0.08); --card-solid: #ffffff;
+      --text: #eef2ff; --muted: #b8c0e0; --accent: #4f8cff; --accent-2: #00c2a8; --accent-3: #ffb703;
+      --danger: #ff5a5f; --shadow: 0 20px 50px rgba(0,0,0,0.22);
+    }
+    body { background: radial-gradient(circle at top left, #172248, var(--bg)); color: var(--text); min-height: 100vh; }
+    .container { width: min(1180px, 92%); margin: 0 auto; }
+    .hero { padding: 42px 0 24px; }
+    .hero-card { display: grid; grid-template-columns: 1.3fr 0.9fr; gap: 24px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 28px; box-shadow: var(--shadow); overflow: hidden; }
+    .hero-left, .hero-right { padding: 30px; }
+    .badge { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; background: rgba(79,140,255,0.14); color: #dbe7ff; font-size: 0.9rem; font-weight: 600; margin-bottom: 16px; }
+    h1 { font-size: clamp(1.8rem, 4vw, 3.4rem); line-height: 1.12; margin-bottom: 14px; }
+    h1 span { color: #90b4ff; }
+    .hero-left p { color: var(--muted); line-height: 1.7; max-width: 62ch; }
+    .action-row { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 18px; }
+    .btn { border: none; outline: none; cursor: pointer; padding: 14px 20px; border-radius: 14px; font-size: 0.98rem; font-weight: 600; transition: 0.25s ease; }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), #76a8ff); color: white; box-shadow: 0 10px 25px rgba(79,140,255,0.35); }
+    .btn-secondary { background: rgba(255,255,255,0.08); color: white; border: 1px solid rgba(255,255,255,0.12); }
+    .btn-success { background: linear-gradient(135deg, var(--accent-2), #5be7d2); color: #042b25; box-shadow: 0 10px 25px rgba(0,194,168,0.28); }
+    .mini-title { font-size: 0.95rem; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+    .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .stat-card { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 20px; }
+    .stat-card h3 { font-size: 1.6rem; margin-bottom: 6px; }
+    .stat-card p { color: var(--muted); font-size: 0.92rem; }
+    .main-section { padding: 8px 0 50px; }
+    .controls-panel, .map-panel, .list-panel { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; box-shadow: var(--shadow); }
+    .controls-panel { padding: 18px; margin-bottom: 18px; }
+    .filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    input, select { width: 100%; padding: 14px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.08); color: var(--text); font-size: 0.95rem; }
+    input::placeholder { color: #c4cbe8; }
+    option { color: #111827; }
+    .content-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 18px; }
+    .map-panel { padding: 18px; }
+    #map { width: 100%; height: 520px; border-radius: 20px; overflow: hidden; }
+    .coord-box { margin-top: 12px; background: rgba(255,255,255,0.08); border-radius: 14px; padding: 12px 14px; color: var(--muted); }
+    .list-panel { padding: 18px; }
+    .list-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; gap: 12px; }
+    .list-head p { color: var(--muted); }
+    .list-wrap { display: grid; gap: 12px; max-height: 620px; overflow: auto; padding-right: 4px; }
+    .shop-card { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; padding: 16px; cursor: pointer; transition: 0.25s ease; }
+    .shop-card:hover { transform: translateY(-2px); }
+    .shop-top { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .shop-card h4 { font-size: 1rem; margin-bottom: 4px; }
+    .shop-card p { color: var(--muted); font-size: 0.92rem; line-height: 1.6; }
+    .category { display: inline-flex; padding: 7px 12px; border-radius: 999px; font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
+    .cat-food { background: rgba(255,183,3,0.15); color: #ffd56a; }
+    .cat-cobbler { background: rgba(79,140,255,0.16); color: #b8d0ff; }
+    .cat-puncture { background: rgba(0,194,168,0.15); color: #7ef5e1; }
+    .help-line { color: var(--muted); margin-top: 10px; font-size: 0.94rem; }
+    @media (max-width: 980px) { .hero-card, .content-grid { grid-template-columns: 1fr; } .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 640px) { .filters { grid-template-columns: 1fr; } #map { height: 420px; } }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="container hero-card">
+      <div class="hero-left">
+        <div class="badge">Locate My Local</div>
+        <h1>Find nearby <span>street vendors</span>, cobblers and puncture shops across Chennai.</h1>
+        <p>Now you can also add a shop by clicking directly on the map. Click a point, check the latitude and longitude, fill the form, and save it instantly.</p>
+        <div class="action-row">
+          <button class="btn btn-primary" onclick="scrollToMap()">Open Map</button>
+          <button class="btn btn-secondary" onclick="useMyLocation()">Use My Location</button>
+          <button class="btn btn-success" onclick="findNearestShops()">Find Nearest</button>
+        </div>
+      </div>
+      <div class="hero-right">
+        <div class="mini-title">Project highlights</div>
+        <div class="stats-grid">
+          <div class="stat-card"><h3 id="shopCount">0</h3><p>Total local shops</p></div>
+          <div class="stat-card"><h3>3</h3><p>Essential categories</p></div>
+          <div class="stat-card"><h3>Chennai</h3><p>City-focused mapping</p></div>
+          <div class="stat-card"><h3>Map Click</h3><p>Add shops by location</p></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-section" id="mainSection">
+    <div class="container">
+      <section class="controls-panel">
+        <div class="filters">
+          <input type="text" id="searchInput" placeholder="Search by shop name or area..." />
+          <select id="categoryFilter">
+            <option value="all">All Categories</option>
+            <option value="Street Food">Street Food</option>
+            <option value="Shoe Cobbler">Shoe Cobbler</option>
+            <option value="Tire Puncture">Tire Puncture</option>
+          </select>
+          <select id="areaFilter">
+            <option value="all">All Areas</option>
+          </select>
+          <select id="sortFilter">
+            <option value="default">Default Sorting</option>
+            <option value="az">A to Z</option>
+            <option value="za">Z to A</option>
+            <option value="area">By Area</option>
+            <option value="nearest">Nearest to Me</option>
+          </select>
+        </div>
+        <div class="help-line">Click on the map first. The selected latitude and longitude will appear below the map and also fill into the add-shop form.</div>
+      </section>
+
+      <section class="controls-panel">
+        <div class="filters">
+          <input type="text" id="shopNameInput" placeholder="Enter shop name" />
+          <select id="shopCategoryInput">
+            <option value="Street Food">Street Food</option>
+            <option value="Shoe Cobbler">Shoe Cobbler</option>
+            <option value="Tire Puncture">Tire Puncture</option>
+          </select>
+          <input type="text" id="shopAreaInput" placeholder="Enter area" />
+          <input type="text" id="shopDescriptionInput" placeholder="Enter description" />
+          <input type="number" id="shopLatInput" placeholder="Latitude" step="any" readonly />
+          <input type="number" id="shopLngInput" placeholder="Longitude" step="any" readonly />
+          <button class="btn btn-success" onclick="addShop()">Add Shop</button>
+          <button class="btn btn-secondary" onclick="clearSelectedPoint()">Clear Selection</button>
+        </div>
+      </section>
+
+      <div class="content-grid">
+        <section class="map-panel">
+          <div id="map"></div>
+          <div class="coord-box" id="mapCoordinates">Move over the map to see live coordinates. Click on the map to select a location.</div>
+        </section>
+
+        <section class="list-panel">
+          <div class="list-head">
+            <div>
+              <h3>Available Shops</h3>
+              <p id="resultCount">0 results found</p>
+            </div>
+          </div>
+          <div class="list-wrap" id="shopList"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const shops = [
+      { name: "Marina Fast Food Corner", category: "Street Food", area: "Triplicane", lat: 13.0569, lng: 80.2824, description: "Budget-friendly street snacks, bajji, sundal and tea near the beach road." },
+      { name: "Anna Salai Cobbler Point", category: "Shoe Cobbler", area: "Anna Salai", lat: 13.0603, lng: 80.2757, description: "Quick shoe stitching, chappal repair and sole replacement." },
+      { name: "T Nagar Puncture Works", category: "Tire Puncture", area: "T Nagar", lat: 13.0418, lng: 80.2337, description: "Bike and auto puncture repair with air filling support." },
+      { name: "Besant Nagar Chaat Stall", category: "Street Food", area: "Besant Nagar", lat: 13.0009, lng: 80.2668, description: "Evening street food stall with chaat, pani puri and sandwiches." },
+      { name: "Adyar Footwear Fix", category: "Shoe Cobbler", area: "Adyar", lat: 13.0067, lng: 80.2575, description: "Affordable stitching and polish service near market streets." },
+      { name: "Velachery Air and Puncture", category: "Tire Puncture", area: "Velachery", lat: 12.9751, lng: 80.2212, description: "Quick puncture fixes, pressure checks and nitrogen refill support." },
+      { name: "Mylapore Bajji Kadai", category: "Street Food", area: "Mylapore", lat: 13.0339, lng: 80.2695, description: "Hot bajji, bonda and tea near Kapaleeshwarar Temple streets." },
+      { name: "Royapuram Tea and Snacks", category: "Street Food", area: "Royapuram", lat: 13.1137, lng: 80.2955, description: "Fried snacks, tea and evening roadside specials." },
+      { name: "Ashok Nagar Cobbler", category: "Shoe Cobbler", area: "Ashok Nagar", lat: 13.0352, lng: 80.2120, description: "Quick repair point for office goers and local residents." },
+      { name: "Porur Puncture Shop", category: "Tire Puncture", area: "Porur", lat: 13.0385, lng: 80.1565, description: "Tyre pressure check, puncture patch and valve replacement." }
+    ];
+
+    let userLocation = null;
+    let selectedMarker = null;
+    let map = L.map("map").setView([13.0827, 80.2707], 11);
+    let markersLayer = L.layerGroup().addTo(map);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    function getCategoryClass(category) {
+      if (category === "Street Food") return "cat-food";
+      if (category === "Shoe Cobbler") return "cat-cobbler";
+      if (category === "Tire Puncture") return "cat-puncture";
+      return "cat-food";
+    }
+
+    function getMarkerColor(category) {
+      if (category === "Street Food") return "#ffb703";
+      if (category === "Shoe Cobbler") return "#4f8cff";
+      if (category === "Tire Puncture") return "#00c2a8";
+      return "#ff5a5f";
+    }
+
+    function createCustomIcon(color) {
+      return L.divIcon({
+        className: "custom-marker",
+        html: '<div style="width:18px;height:18px;border-radius:50%;background:' + color + ';border:3px solid white;box-shadow:0 6px 14px rgba(0,0,0,0.25);"></div>',
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+        popupAnchor: [0, -10]
+      });
+    }
+
+    function calculateDistance(lat1, lng1, lat2, lng2) {
+      const toRad = function(value) { return value * Math.PI / 180; };
+      const earthRadius = 6371;
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return earthRadius * c;
+    }
+
+    function populateAreaFilter() {
+      const areaFilter = document.getElementById("areaFilter");
+      const currentValue = areaFilter.value || "all";
+      areaFilter.innerHTML = '<option value="all">All Areas</option>';
+      const uniqueAreas = [...new Set(shops.map(function(shop) { return shop.area; }))].sort();
+      uniqueAreas.forEach(function(area) {
+        const option = document.createElement("option");
+        option.value = area;
+        option.textContent = area;
+        areaFilter.appendChild(option);
+      });
+      areaFilter.value = uniqueAreas.includes(currentValue) || currentValue === "all" ? currentValue : "all";
+    }
+
+    function renderMap(data) {
+      markersLayer.clearLayers();
+      data.forEach(function(shop) {
+        const marker = L.marker([shop.lat, shop.lng], { icon: createCustomIcon(getMarkerColor(shop.category)) }).addTo(markersLayer);
+        marker.bindPopup('<b>' + shop.name + '</b><br>' + shop.category + '<br>' + shop.area + '<br><small>' + shop.description + '</small>');
+      });
+      if (selectedMarker) {
+        selectedMarker.addTo(map);
+      }
+    }
+
+    function renderShopList(data) {
+      const shopList = document.getElementById("shopList");
+      const resultCount = document.getElementById("resultCount");
+      resultCount.textContent = data.length + ' results found';
+      shopList.innerHTML = "";
+      data.forEach(function(shop) {
+        const card = document.createElement("div");
+        card.className = "shop-card";
+        card.innerHTML = '<div class="shop-top"><div><h4>' + shop.name + '</h4><p>' + shop.area + '</p></div><span class="category ' + getCategoryClass(shop.category) + '">' + shop.category + '</span></div><p>' + shop.description + '</p>';
+        card.addEventListener("click", function() {
+          map.setView([shop.lat, shop.lng], 16);
+        });
+        shopList.appendChild(card);
+      });
+    }
+
+    function applyFilters() {
+      const searchValue = document.getElementById("searchInput").value.toLowerCase().trim();
+      const categoryValue = document.getElementById("categoryFilter").value;
+      const areaValue = document.getElementById("areaFilter").value;
+      const sortValue = document.getElementById("sortFilter").value;
+
+      let filtered = shops.filter(function(shop) {
+        const matchesSearch = shop.name.toLowerCase().includes(searchValue) || shop.area.toLowerCase().includes(searchValue);
+        const matchesCategory = categoryValue === "all" || shop.category === categoryValue;
+        const matchesArea = areaValue === "all" || shop.area === areaValue;
+        return matchesSearch && matchesCategory && matchesArea;
+      });
+
+      if (sortValue === "az") {
+        filtered.sort(function(a, b) { return a.name.localeCompare(b.name); });
+      } else if (sortValue === "za") {
+        filtered.sort(function(a, b) { return b.name.localeCompare(a.name); });
+      } else if (sortValue === "area") {
+        filtered.sort(function(a, b) { return a.area.localeCompare(b.area); });
+      } else if (sortValue === "nearest" && userLocation) {
+        filtered.sort(function(a, b) {
+          const distanceA = calculateDistance(userLocation.lat, userLocation.lng, a.lat, a.lng);
+          const distanceB = calculateDistance(userLocation.lat, userLocation.lng, b.lat, b.lng);
+          return distanceA - distanceB;
+        });
+      }
+
+      renderMap(filtered);
+      renderShopList(filtered);
+    }
+
+    function setSelectedPoint(latValue, lngValue) {
+      document.getElementById("shopLatInput").value = latValue.toFixed(6);
+      document.getElementById("shopLngInput").value = lngValue.toFixed(6);
+      document.getElementById("mapCoordinates").textContent = 'Selected Location -> Latitude: ' + latValue.toFixed(6) + ' | Longitude: ' + lngValue.toFixed(6);
+      if (selectedMarker) {
+        map.removeLayer(selectedMarker);
+      }
+      selectedMarker = L.marker([latValue, lngValue]).bindPopup('Selected location').addTo(map);
+    }
+
+    function clearSelectedPoint() {
+      document.getElementById("shopLatInput").value = "";
+      document.getElementById("shopLngInput").value = "";
+      document.getElementById("mapCoordinates").textContent = 'Move over the map to see live coordinates. Click on the map to select a location.';
+      if (selectedMarker) {
+        map.removeLayer(selectedMarker);
+        selectedMarker = null;
+      }
+    }
+
+    function addShop() {
+      const nameValue = document.getElementById("shopNameInput").value.trim();
+      const categoryValue = document.getElementById("shopCategoryInput").value;
+      const areaValue = document.getElementById("shopAreaInput").value.trim();
+      const descriptionValue = document.getElementById("shopDescriptionInput").value.trim();
+      const latValue = parseFloat(document.getElementById("shopLatInput").value);
+      const lngValue = parseFloat(document.getElementById("shopLngInput").value);
+
+      if (!nameValue || !areaValue || !descriptionValue || Number.isNaN(latValue) || Number.isNaN(lngValue)) {
+        alert("Please click on the map to select a location, then fill all fields.");
+        return;
+      }
+
+      shops.push({ name: nameValue, category: categoryValue, area: areaValue, lat: latValue, lng: lngValue, description: descriptionValue });
+      populateAreaFilter();
+      animateCount("shopCount", shops.length);
+      applyFilters();
+      map.setView([latValue, lngValue], 15);
+      document.getElementById("shopNameInput").value = "";
+      document.getElementById("shopAreaInput").value = "";
+      document.getElementById("shopDescriptionInput").value = "";
+      document.getElementById("shopCategoryInput").value = "Street Food";
+      clearSelectedPoint();
+      alert("New shop added successfully.");
+    }
+
+    function useMyLocation() {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported in your browser.");
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(function(position) {
+        userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
+        map.setView([userLocation.lat, userLocation.lng], 14);
+        L.circleMarker([userLocation.lat, userLocation.lng], { radius: 10, fillColor: "#ff5a5f", color: "#fff", weight: 3, opacity: 1, fillOpacity: 1 }).addTo(map).bindPopup("You are here").openPopup();
+        applyFilters();
+      }, function() {
+        alert("Unable to get your location. Please allow location access.");
+      });
+    }
+
+    function findNearestShops() {
+      if (!userLocation) {
+        alert("Please click Use My Location first.");
+        return;
+      }
+      document.getElementById("sortFilter").value = "nearest";
+      applyFilters();
+      scrollToMap();
+    }
+
+    function scrollToMap() {
+      document.getElementById("mainSection").scrollIntoView({ behavior: "smooth" });
+    }
+
+    function animateCount(elementId, endValue) {
+      const element = document.getElementById(elementId);
+      let startValue = 0;
+      const duration = 1000;
+      const increment = Math.ceil(endValue / 40);
+      const counter = setInterval(function() {
+        startValue += increment;
+        if (startValue >= endValue) {
+          element.textContent = endValue;
+          clearInterval(counter);
+        } else {
+          element.textContent = startValue;
+        }
+      }, duration / 40);
+    }
+
+    map.on("mousemove", function(eventObj) {
+      if (!document.getElementById("shopLatInput").value) {
+        document.getElementById("mapCoordinates").textContent = 'Latitude: ' + eventObj.latlng.lat.toFixed(6) + ' | Longitude: ' + eventObj.latlng.lng.toFixed(6);
+      }
+    });
+
+    map.on("click", function(eventObj) {
+      setSelectedPoint(eventObj.latlng.lat, eventObj.latlng.lng);
+    });
+
+    document.getElementById("searchInput").addEventListener("input", applyFilters);
+    document.getElementById("categoryFilter").addEventListener("change", applyFilters);
+    document.getElementById("areaFilter").addEventListener("change", applyFilters);
+    document.getElementById("sortFilter").addEventListener("change", applyFilters);
+
+    populateAreaFilter();
+    renderMap(shops);
+    renderShopList(shops);
+    animateCount("shopCount", shops.length);
+  </script>
+</body>
+</html>
